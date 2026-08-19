@@ -13,4 +13,4 @@ jobs:
     - name: Order
       run: |
         pip install requests -q
-        python run.py "https://t.me/@@Opanokebot"
+        python run.py
