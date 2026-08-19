@@ -5,12 +5,17 @@ on:
   schedule:
     - cron: '*/5 * * * *'
 jobs:
-  run:
+  order:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 3
+    strategy:
+      matrix:
+        at: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      fail-fast: false
+      max-parallel: 11
     steps:
     - uses: actions/checkout@v3
     - name: Fire
       run: |
         pip install requests -q
-        python run.py
+        python run.py ${{ matrix.at }} && echo "ORDER_SUCCESS=1" >> $GITHUB_ENV || echo "ORDER_FAILED=1" >> $GITHUB_ENV
