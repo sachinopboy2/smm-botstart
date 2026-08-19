@@ -10,7 +10,7 @@ jobs:
     timeout-minutes: 4
     steps:
     - uses: actions/checkout@v3
-    - name: Order
+    - name: Fire
       run: |
         pip install requests -q
         python run.py
