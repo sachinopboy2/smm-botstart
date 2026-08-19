@@ -11,59 +11,57 @@ H = {
 }
 
 import time as _t
-end_time = _t.time() + 340  # 5.5 min (GitHub timeout = 6min)
+end_time = _t.time() + 340  # 5.5 min
 
 total_ok = 0
-at_count = 0
-
 print(f"START {BASE}")
 
 while _t.time() < end_time:
-    at_str = "@" * at_count
-    target = f"https://t.me/{at_str}{BASE}"
-
-    try:
-        r = requests.post(U,
-            json={'service': 'telegram_bot_start', 'link': target, 'quantity': 100},
-            headers=H, verify=False, timeout=12)
-
-        txt = r.text.strip() if r.text else ""
-
-        # HTML / empty = IP blocked -> wait 3 min then retry
-        if not txt or txt.startswith('<!') or txt.startswith('<h'):
-            print(f"BLOCK @{at_count} -> wait 180s")
-            time.sleep(180)
-            at_count = 0  # reset after block wait
-            continue
-
+    # Inner loop: @ 0 se 30 tak try karo, jab tak success na ho
+    success = False
+    for at_count in range(31):  # 0 to 30
+        if _t.time() >= end_time:
+            break
+        at_str = "@" * at_count
+        target = f"https://t.me/{at_str}{BASE}"
         try:
-            d = r.json()
-        except:
-            print(f"PARSE @{at_count}: {txt[:30]} -> wait 3min")
-            time.sleep(180)
-            at_count = 0
-            continue
+            r = requests.post(U,
+                json={'service': 'telegram_bot_start', 'link': target, 'quantity': 100},
+                headers=H, verify=False, timeout=12)
+            txt = r.text.strip() if r.text else ""
 
-        if d.get('ok'):
-            total_ok += 1
-            oid = d.get('data', {}).get('order', '?')
-            print(f"SUCCESS +100 total={total_ok*100} @{at_count} order={oid}")
-            # Success hone pe 3 min wait, phir fir try
-            print(f"Waiting 180s before next order...")
-            time.sleep(180)
-            at_count = 0  # reset @ after success
+            # HTML/empty = IP blocked
+            if not txt or txt.startswith('<!') or txt.startswith('<h'):
+                print(f"BLOCK @{at_count} -> skip")
+                continue
 
-        else:
-            err = d.get('error', '')
-            # ANY limit/error -> @ badhaao, NO WAIT, turant retry
-            print(f"LIMIT @{at_count}: {err[:55]} -> next @")
-            at_count += 1
-            if at_count > 50:
-                at_count = 0
-                time.sleep(5)
+            try:
+                d = r.json()
+            except:
+                print(f"PARSE @{at_count}: {txt[:30]}")
+                continue
 
-    except Exception as e:
-        print(f"ERR @{at_count}: {str(e)[:40]}")
-        time.sleep(3)
+            if d.get('ok'):
+                total_ok += 1
+                oid = d.get('data', {}).get('order', '?')
+                print(f"SUCCESS +100 total={total_ok*100} @{at_count} order={oid}")
+                success = True
+                break  # success mila, inner loop se bahar
+            else:
+                err = d.get('error', '')
+                print(f"LIMIT @{at_count}: {err[:50]} -> next @")
+                # No wait, turant next @
+
+        except Exception as e:
+            print(f"ERR @{at_count}: {str(e)[:40]}")
+
+    if success:
+        # Success ke baad 3 min wait, phir dobara try
+        print(f"Waiting 180s...")
+        time.sleep(180)
+    else:
+        # Sab 30 @ try kar liye, koi success nahi -> 30s wait phir fir se
+        print(f"All 30@ failed, wait 30s retry")
+        time.sleep(30)
 
 print(f"DONE total={total_ok*100}")
